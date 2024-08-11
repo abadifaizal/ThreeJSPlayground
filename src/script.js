@@ -1,5 +1,25 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls'
+import gsap from 'gsap'
+import GUI from 'lil-gui'
+
+/**
+ * Debug
+ */
+const gui = new GUI({
+  width: 300,
+  title: 'Nice Debug UI',
+  closeFolders: false
+})
+//gui.close() // Close the GUI by default
+//gui.hide() // Hide the GUI by default
+window.addEventListener('keydown', (event) => {
+  if(event.key === 'h') {
+    gui.show(gui._hidden)
+  } 
+})
+
+const debugObject = {}
 
 /**
  * Cursor
@@ -70,11 +90,76 @@ window.addEventListener('dblclick', () => {
 const scene = new THREE.Scene()
 
 // Object
-const mesh = new THREE.Mesh(
-  new THREE.BoxGeometry(1, 1, 1, 5, 5, 5),
-  new THREE.MeshBasicMaterial({ color: 0xff0000 })
-)
+debugObject.color = '#a778d8'
+
+// const geometry = new THREE.BufferGeometry()
+const geometry = new THREE.BoxGeometry(1, 1, 1, 2, 2, 2)
+
+const count = 50
+const positionsArray = new Float32Array(count * 3 * 3)
+
+for(let i = 0; i < count * 3 * 3; i++) {
+  positionsArray[i] = (Math.random() - 0.5) * 4
+}
+
+/**
+ * >! BufferGeometry Index
+ * 
+ * ** To improve performance, we can use an index buffer to reuse vertices
+ * *** The index buffer is an array of integers that reference the vertices in the position buffer
+ * *** The index buffer is set using the setIndex method
+ */
+
+const positionsAttribute = new THREE.BufferAttribute(positionsArray, 3)
+
+// geometry.setAttribute('position', positionsAttribute)
+
+const material = new THREE.MeshBasicMaterial({
+  color: debugObject.color,
+  wireframe: true,
+})
+
+const mesh = new THREE.Mesh(geometry,material)
 scene.add(mesh)
+
+const cubeTweaks = gui.addFolder('Awesome Cube')
+cubeTweaks.close() // Close the folder by default
+
+cubeTweaks.add(mesh.position, 'y').min(-3).max(3).step(0.01).name('elevation')
+cubeTweaks.add(mesh, 'visible').name('visible')
+cubeTweaks.add(material, 'wireframe').name('wireframe')
+cubeTweaks.addColor(debugObject, 'color').name('color').onChange(() => {
+  material.color.set(debugObject.color)
+})
+debugObject.spin = () => {
+  gsap.to(mesh.rotation, { y: mesh.rotation.y + Math.PI * 2 })
+}
+cubeTweaks.add(debugObject, 'spin')
+debugObject.subdivision = 2
+/**
+ * >! BufferGeometry Subdivision
+ * 
+ * ** To subdivide a BufferGeometry, we can use the BufferGeometryUtils.mergeVertices method
+ * *** The method will merge vertices that are close to each other
+ * *** The recommended value is between 1 and 20
+ * *** use onFinishedChange instead of onChange to avoid performance issues
+ */
+cubeTweaks.add(debugObject, 'subdivision').min(1).max(20).step(1).onFinishChange(() => {
+  /**
+   * >! BufferGeometry Disposal
+   * 
+   * ** To dispose of a BufferGeometry, we can use the dispose method
+   * *** The dispose method will remove the geometry from memory
+   * *** Dispose of the geometry before creating a new one
+   */
+  mesh.geometry.dispose()
+  mesh.geometry = new THREE.BoxGeometry(
+    1, 1, 1,
+    debugObject.subdivision,
+    debugObject.subdivision,
+    debugObject.subdivision
+  )
+})
 
 /**
  * >! Camera
